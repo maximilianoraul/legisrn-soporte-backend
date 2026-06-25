@@ -14,6 +14,8 @@ FastAPI + Symfony vía Docker Compose.
 | Symfony app | `app/` | PHP 8.4 + nginx | `http://localhost:8080` |
 | Python API | `python-api/` | FastAPI + Paramiko | `http://localhost:8081` |
 
+La página principal en `http://localhost:8080` (`/`) tiene un formulario para consultar IP/DNS vía SSH. El flujo es SPA (Stimulus): el front consulta al backend Symfony, que usa `PythonApiService` para llamar a la Python API por el nombre interno del servicio Docker (`python-api:8080`).
+
 ## Levantar el stack
 
 ```bash

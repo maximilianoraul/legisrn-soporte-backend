@@ -38,7 +38,34 @@ Tres endpoints, todos con `?host=` query param:
 
 ## Symfony (app)
 
-Skeleton sin controladores ni rutas personalizadas. Usa `webdevops/php-nginx:8.4` con document root en `/app/public`. En desarrollo se reemplaza por `webdevops/php-nginx-dev:8.4` con Xdebug.
+Usa `webdevops/php-nginx:8.4` con document root en `/app/public`. En desarrollo se reemplaza por `webdevops/php-nginx-dev:8.4` con Xdebug.
+
+### Página `/`
+
+Formulario con input de IP/DNS + botón Consultar. SPA via Stimulus + AssetMapper.
+
+Flujo:
+
+`Stimulus → GET /api/host-status?host=X → PythonApiService → python-api:8080`
+
+Si ping+SSH OK, el frontend lanza en paralelo:
+
+`Stimulus → GET /api/home-dirs?host=X → PythonApiService → python-api:8080`
+`Stimulus → GET /api/logged-users?host=X → PythonApiService → python-api:8080`
+
+Cada sección muestra su propio indicador de carga mientras se resuelve la request.
+
+### Endpoints internos (proxy a Python API)
+
+| Endpoint | Descripción |
+|---|---|
+| `GET /api/host-status?host=X` | Proxy a `/host-status` |
+| `GET /api/home-dirs?host=X` | Proxy a `/home-dirs` |
+| `GET /api/logged-users?host=X` | Proxy a `/logged-users` |
+
+### Paquetes agregados
+
+`symfony/asset-mapper`, `symfony/stimulus-bundle`, `symfony/http-client`, `symfony/twig-bundle` — todos `8.1.*` excepto stimulus-bundle (`^3.2`).
 
 ## Estructura
 
@@ -47,14 +74,27 @@ Skeleton sin controladores ni rutas personalizadas. Usa `webdevops/php-nginx:8.4
 - `python-api/pyproject.toml` — config de ruff y mypy
 - `python-api/requirements.txt` — fastapi, uvicorn, paramiko, python-dotenv, ruff, mypy, types-paramiko
 - `python-api/.env` / `.env.local` — credenciales SSH (git-ignored el segundo)
-- `app/` — Symfony 8.1 skeleton (composer, config, src/, public/)
+- `app/` — Symfony 8.1 (composer, config, src/, public/)
+- `app/src/Controller/HostCheckController.php` — página `/` + proxy `/api/host-status`, `/api/home-dirs`, `/api/logged-users`
+- `app/src/Service/PythonApiService.php` — wrapper que consulta python-api
+- `app/templates/host_check/index.html.twig` — formulario con Stimulus
+- `app/assets/controllers/host_check_controller.js` — Stimulus controller SPA
+- `app/assets/app.js` — entrypoint JS (importmap)
+- `app/importmap.php` — mapeo de módulos JS (`@hotwired/stimulus`, `app`)
 - `app/Dockerfile` — `ARG APP_IMAGE`, solo cambia el WORKDIR
-- `docker-compose.yml` — producción (sin puertos expuestos)
+- `docker-compose.yml` — producción (sin puertos expuestos) + env vars `NO_PROXY`, `no_proxy`
 - `docker-compose.override.yml` — git-ignored, hot-reload + xdebug + puertos
 
 ## Variables de Entorno
 
+### Python API
+
 `python-dotenv` carga `.env` luego `.env.local` con `override=True` en `main.py:9-10`. No usar `env_file` en compose.
+
+### Symfony (`docker-compose.yml`)
+
+- `PYTHON_API_URL=http://python-api:8080` — base URL para `PythonApiService` (definido en `config/services.yaml`)
+- `NO_PROXY` / `no_proxy` — si el host tiene proxy configurado, ambas variantes deben incluir `python-api` para que la llamada interna no pase por el proxy
 
 ## Notas
 

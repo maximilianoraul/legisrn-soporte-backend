@@ -7,6 +7,8 @@ services:
     environment:
       TZ: "America/Argentina/Buenos_Aires"
       WEB_DOCUMENT_ROOT: /app/public
+      NO_PROXY: "python-api,localhost,127.0.0.1"
+      no_proxy: "python-api,localhost,127.0.0.1,.linuxlegisrn.int,python,elasticsearch"
     volumes:
       - ./app:/app
   python-api:
