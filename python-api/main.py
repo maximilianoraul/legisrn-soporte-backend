@@ -42,13 +42,12 @@ def get_home_dirs(host: str):
     )
 
     stdin, stdout, stderr = ssh.exec_command(
-        "ls -d /home/*/"
+        "cd /home && ls -d1q lrn*"
     )
 
     dirs = stdout.read().decode().split()
-    lrn_dirs = [d.strip("/").split("/")[-1] for d in dirs if d.split("/")[-2].startswith("lrn")]
 
-    return {"directories": lrn_dirs}
+    return {"directories": dirs}
 
 
 @app.get("/host-status")
