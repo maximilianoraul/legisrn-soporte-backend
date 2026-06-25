@@ -28,24 +28,34 @@ def resolve_host(host: str) -> str:
         raise HTTPException(status_code=400, detail=f"No se pudo resolver el host: {host}")
 
 
+def ssh_connect(host: str) -> paramiko.SSHClient:
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.connect(
+        hostname=host,
+        username=os.environ["SSH_USER"],
+        password=os.environ["SSH_PASSWORD"],
+        timeout=1
+    )
+    return client
+
+
 @app.get("/home-dirs")
 def get_home_dirs(host: str):
     ip = resolve_host(host)
+    ssh = None
 
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-    ssh.connect(
-        hostname=ip,
-        username=os.environ["SSH_USER"],
-        password=os.environ["SSH_PASSWORD"]
-    )
-
-    stdin, stdout, stderr = ssh.exec_command(
-        "cd /home && ls -d1q lrn*"
-    )
-
-    dirs = stdout.read().decode().split()
+    try:
+        ssh = ssh_connect(ip)
+        stdin, stdout, stderr = ssh.exec_command(
+            "cd /home && ls -d1q lrn*"
+        )
+        dirs = stdout.read().decode().split()
+    except (paramiko.SSHException, socket.error, OSError) as e:
+        raise HTTPException(status_code=502, detail=f"Error de conexión SSH: {e}")
+    finally:
+        if ssh:
+            ssh.close()
 
     return {"directories": dirs}
 
@@ -69,3 +79,33 @@ def get_host_status(host: str):
         "ping": ping.returncode == 0,
         "ssh": port_open
     }
+
+
+@app.get("/logged-users")
+def get_logged_users(host: str):
+    ip = resolve_host(host)
+    ssh = None
+
+    try:
+        ssh = ssh_connect(ip)
+        stdin, stdout, stderr = ssh.exec_command(
+            "who -u"
+        )
+
+        sessions = []
+        for line in stdout.read().decode().splitlines():
+            parts = line.split()
+            if len(parts) >= 4:
+                sessions.append({
+                    "user": parts[0],
+                    "tty": parts[1],
+                    "since": parts[2],
+                    "online": parts[3]
+                })
+    except (paramiko.SSHException, socket.error, OSError) as e:
+        raise HTTPException(status_code=502, detail=f"Error de conexión SSH: {e}")
+    finally:
+        if ssh:
+            ssh.close()
+
+    return {"sessions": sessions}
