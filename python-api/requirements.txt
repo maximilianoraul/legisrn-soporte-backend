@@ -2,3 +2,6 @@ fastapi
 uvicorn
 paramiko
 python-dotenv
+ruff
+mypy
+types-paramiko

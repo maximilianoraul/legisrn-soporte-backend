@@ -1,47 +1,52 @@
 # Soporte New
 
-Herramienta FastAPI + Paramiko para consultas SSH a servidores remotos vía Docker.
-
-## Inicio Rápido
-
-```bash
-docker compose up --build
-```
-
-App en `http://localhost:8080`. Swagger UI solo disponible en desarrollo (`DOCS_ENABLED=true` en override).
-
-## Estructura
-
-- `python-api/main.py` — app FastAPI, punto de entrada
-- `python-api/Dockerfile` — Python 3.11-slim + uvicorn
-- `docker-compose.yml` — base (producción)
-- `docker-compose.override.yml` — desarrollo (hot-reload + volume mount). Git-ignored.
-
-## Carga de Variables de Entorno
-
-`.env` tiene valores por defecto (commiteado). `.env.local` sobreescribe con secretos reales (git-ignored).
-
-`python-dotenv` carga ambos en `main.py`: `.env` primero, luego `.env.local` con `override=True`.
-
-No usar `env_file` en docker-compose para esto — Python lo maneja directamente.
+FastAPI + Paramiko SSH consultas vía Docker.
 
 ## Comandos
 
 ```bash
-# Desarrollo (hot-reload)
-docker compose up --build
-
-# Producción (sin hot-reload)
-docker compose -f docker-compose.yml up --build
-
-# Rebuild después de cambiar dependencias
-docker compose up --build --force-recreate
+docker compose up --build                          # desarrollo (hot-reload)
+docker compose -f docker-compose.yml up --build     # producción
+docker compose up --build --force-recreate          # rebuild dependencias
+ruff check python-api/main.py                      # lint
+mypy python-api/main.py                            # typecheck
 ```
+
+App en `http://localhost:8080`. Swagger UI solo con `DOCS_ENABLED=true` (override).
+
+## API
+
+Tres endpoints, todos con `?host=` como query param:
+
+| Endpoint | Descripción |
+|---|---|
+| `GET /home-dirs` | `ls -d1q lrn*` en `/home` vía SSH |
+| `GET /host-status` | ping + port 22 check (sin SSH) |
+| `GET /logged-users` | `who -u` vía SSH |
+
+- SSH timeout 1s, `AutoAddPolicy`, credenciales de env vars `SSH_USER` / `SSH_PASSWORD`
+- Host se resuelve a IPv4 con `socket.getaddrinfo`; falla con 400 si no resuelve
+- Errores SSH devuelven 502
+
+## Estructura
+
+- `python-api/main.py` — app FastAPI, punto de entrada
+- `python-api/Dockerfile` — Python 3.11-slim + `iputils-ping` (para `/host-status`)
+- `python-api/.env` — defaults commiteados; `.env.local` (git-ignored) sobreescribe
+- `python-api/requirements.txt` — fastapi, uvicorn, paramiko, python-dotenv, ruff, mypy
+- `python-api/pyproject.toml` — config de ruff y mypy
+- `docker-compose.yml` — base (producción, 3 líneas)
+- `docker-compose.override.yml` — git-ignored, hot-reload + volume + `DOCS_ENABLED=true`
+
+## Variables de Entorno
+
+`python-dotenv` carga `.env` luego `.env.local` con `override=True` en `main.py:9-10`. No usar `env_file` en compose.
 
 ## Notas
 
-- `docker-compose.override.yml` está git-ignored — contiene puertos, volumes, comando de reload
-- `.env.local` está git-ignored — contiene credenciales SSH reales
-- Credenciales SSH se cargan vía `os.environ[]` — lanza `KeyError` si faltan las variables
-- La app corre como root en el contenedor (sin usuario non-root configurado)
-- No hay tests, lint ni typecheck configurados
+- Lint: `ruff check python-api/main.py` — config en `pyproject.toml`
+- Typecheck: `mypy python-api/main.py` — stubs via `types-paramiko`
+- No hay tests configurados
+- La app corre como root en el contenedor
+- `os.environ[]` sin default — `KeyError` si faltan credenciales
+- `.env` y `.env.local` van dentro de `python-api/` (host path mapeado a `/app/` en contenedor)

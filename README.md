@@ -21,10 +21,10 @@ La app queda disponible en `http://localhost:8080`.
 
 Las credenciales se configuran en archivos `.env` dentro de `python-api/`:
 
-| Archivo | Propósito | ¿Se commitea? |
-|---|---|---|
-| `python-api/.env` | Valores por defecto (ejemplo) | Sí |
-| `python-api/.env.local` | Credenciales reales | No |
+| Archivo                 | Propósito                     | ¿Se commitea? |
+| ----------------------- | ----------------------------- | ------------- |
+| `python-api/.env`       | Valores por defecto (ejemplo) | Sí            |
+| `python-api/.env.local` | Credenciales reales           | No            |
 
 ### Archivo `.env` (ejemplo)
 
@@ -52,14 +52,32 @@ El archivo `docker-compose.override.yml` se carga automáticamente con `docker c
 
 ```yaml
 services:
-  api:
+  app:
+    build:
+      args:
+        APP_IMAGE: webdevops/php-nginx-dev:8.4
+    environment:
+      APP_ENV: dev
+      PHP_DEBUGGER: xdebug
+      PHP_MEMORY_LIMIT: 1024M
+      XDEBUG_MODE: debug
+      XDEBUG_DISCOVER_CLIENT_HOST: yes
+      XDEBUG_START_WITH_REQUEST: yes
+      XDEBUG_CLIENT_HOST: 172.17.0.1
+      XDEBUG_CLIENT_PORT: 9003
+      XDEBUG_IDE_KEY: PHPSTORM
+    ports:
+      - "8080:80"
+
+  python-api:
     environment:
       - DOCS_ENABLED=true
     ports:
-      - "8080:8080"
+      - "8081:8080"
     volumes:
       - ./python-api:/app
-    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
+    command:
+      ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
 ```
 
 > Este archivo está git-ignored para no afectar producción.

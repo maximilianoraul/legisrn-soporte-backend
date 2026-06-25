@@ -1,3 +1,13 @@
 services:
-  api:
+  app:
+    build:
+      context: ./app
+      args:
+        APP_IMAGE: webdevops/php-nginx:8.4
+    environment:
+      TZ: "America/Argentina/Buenos_Aires"
+      WEB_DOCUMENT_ROOT: /app/public
+    volumes:
+      - ./app:/app
+  python-api:
     build: ./python-api

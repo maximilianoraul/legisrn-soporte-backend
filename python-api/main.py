@@ -1,10 +1,11 @@
-from fastapi import FastAPI, HTTPException
-from dotenv import load_dotenv
-import paramiko
-import socket
-import subprocess
 import ipaddress
 import os
+import socket
+import subprocess
+
+import paramiko
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
 
 load_dotenv(".env")
 load_dotenv(".env.local", override=True)
@@ -23,7 +24,7 @@ def resolve_host(host: str) -> str:
 
     try:
         result = socket.getaddrinfo(host, None, socket.AF_INET)
-        return result[0][4][0]
+        return str(result[0][4][0])
     except socket.gaierror:
         raise HTTPException(status_code=400, detail=f"No se pudo resolver el host: {host}")
 
@@ -51,7 +52,7 @@ def get_home_dirs(host: str):
             "cd /home && ls -d1q lrn*"
         )
         dirs = stdout.read().decode().split()
-    except (paramiko.SSHException, socket.error, OSError) as e:
+    except (paramiko.SSHException, OSError) as e:
         raise HTTPException(status_code=502, detail=f"Error de conexión SSH: {e}")
     finally:
         if ssh:
@@ -102,7 +103,7 @@ def get_logged_users(host: str):
                     "since": parts[2],
                     "online": parts[3]
                 })
-    except (paramiko.SSHException, socket.error, OSError) as e:
+    except (paramiko.SSHException, OSError) as e:
         raise HTTPException(status_code=502, detail=f"Error de conexión SSH: {e}")
     finally:
         if ssh:
