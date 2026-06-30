@@ -19,6 +19,8 @@
         "symfony/yaml": "8.1.*"
     },
     "require-dev": {
+        "symfony/stopwatch": "8.1.*",
+        "symfony/web-profiler-bundle": "8.1.*"
     },
     "config": {
         "allow-plugins": {
